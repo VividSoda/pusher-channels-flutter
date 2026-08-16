@@ -1,13 +1,13 @@
-# Pusher Channels Flutter Client
+# Pusher Channels Flutter Client (VividSoda fork)
 
-[![Latest Release](https://img.shields.io/github/v/release/pusher/pusher-channels-flutter)](https://github.com/pusher/pusher-channels-flutter/releases)
-[![Twitter](https://img.shields.io/badge/twitter-@Pusher-blue.svg?style=flat)](http://twitter.com/Pusher)
-[![GitHub license](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://raw.githubusercontent.com/pusher/pusher-channels-flutter/master/LICENSE)
-[![likes](https://badges.bar/pusher_channels_flutter/likes)](https://pub.dev/packages/pusher_channels_flutter/score)
-[![popularity](https://badges.bar/pusher_channels_flutter/popularity)](https://pub.dev/packages/pusher_channels_flutter/score)
-[![pub points](https://badges.bar/pusher_channels_flutter/pub%20points)](https://pub.dev/packages/pusher_channels_flutter/score)
+[![Latest Release](https://img.shields.io/github/v/release/VividSoda/pusher-channels-flutter)](https://github.com/VividSoda/pusher-channels-flutter/releases)
+[![GitHub license](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://raw.githubusercontent.com/VividSoda/pusher-channels-flutter/master/LICENSE)
+[![likes](https://badges.bar/vs_pusher_channels_flutter/likes)](https://pub.dev/packages/vs_pusher_channels_flutter/score)
+[![popularity](https://badges.bar/vs_pusher_channels_flutter/popularity)](https://pub.dev/packages/vs_pusher_channels_flutter/score)
+[![pub points](https://badges.bar/vs_pusher_channels_flutter/pub%20points)](https://pub.dev/packages/vs_pusher_channels_flutter/score)
 
-This is the [Pusher Channels](https://pusher.com/channels) Flutter client.
+This is a VividSoda fork of the [Pusher Channels](https://pusher.com/channels) Flutter client, migrated to
+the latest Flutter/Android/iOS tooling. See [CHANGELOG.md](CHANGELOG.md) for what's changed from upstream.
 
 For tutorials and more in-depth information about Pusher Channels, visit our [official docs](https://pusher.com/docs/channels).
 
@@ -90,7 +90,7 @@ to add the plugin to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pusher_channels_flutter: '^1.0.1'
+  vs_pusher_channels_flutter: '^2.7.0'
 ```
 
 ### iOS specific installation

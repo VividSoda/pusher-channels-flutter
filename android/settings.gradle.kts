@@ -1,1 +1,1 @@
-rootProject.name = "pusher_channels_flutter"
+rootProject.name = "vs_pusher_channels_flutter"

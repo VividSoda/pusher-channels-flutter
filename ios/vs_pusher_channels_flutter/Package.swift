@@ -4,12 +4,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "pusher_channels_flutter",
+    name: "vs_pusher_channels_flutter",
     platforms: [
         .iOS("13.0")
     ],
     products: [
-        .library(name: "pusher-channels-flutter", targets: ["pusher_channels_flutter"])
+        .library(name: "vs-pusher-channels-flutter", targets: ["vs_pusher_channels_flutter"])
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
@@ -17,7 +17,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "pusher_channels_flutter",
+            name: "vs_pusher_channels_flutter",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .product(name: "PusherSwift", package: "pusher-websocket-swift")
