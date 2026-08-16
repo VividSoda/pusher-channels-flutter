@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.7.0
+
+* [CHANGED] Migrated Android build to the latest Flutter plugin template: Kotlin DSL (`build.gradle.kts`), AGP 9.0.1, Kotlin 2.3.20, Gradle 9.1.0, compileSdk 36, Java 17. Example app build files migrated the same way.
+* [ADDED] iOS: Swift Package Manager support alongside the existing CocoaPods podspec (`ios/pusher_channels_flutter/Package.swift`), following Flutter's current plugin folder layout (`ios/pusher_channels_flutter/Sources/pusher_channels_flutter`). Bumped PusherSwift to 10.1.10.
+* [FIXED] iOS: `trigger()` never called back to Dart, so `PusherChannel.trigger()`/`PusherChannelsFlutter.trigger()` would hang forever instead of completing or throwing.
+* [FIXED] Android/iOS: calling `connect`/`disconnect`/`subscribe`/`unsubscribe`/`trigger`/`getSocketId` before `init()` crashed the host app; now returns a `PlatformException`/`FlutterError` instead.
+* [FIXED] Android: an unsupported `trigger()` call (e.g. private-encrypted channel, or a non-private/presence channel) threw an uncaught exception instead of surfacing a `PlatformException` to Dart.
+* [ADDED] `PusherConnectionState` enum and `PusherChannelsFlutter.connectionStateEnum` as a typed, non-breaking alternative to the existing String-based `connectionState`.
+* [CHANGED] Web: migrated off the discontinued `package:js` to `dart:js_interop`, dropping the `js` dependency entirely. Web now compiles to both dart2js and WebAssembly (`flutter build web --wasm`).
+* [CHANGED] Web: removed ~65 unreachable files from the vendored `lib/pusher-js` interop bindings (Node.js/React Native/Web Worker runtime variants, JSONP/XHR-polling fallback transports, encryption support, and other pusher-js surface this plugin never used) — cut from 95 files to 30. No public API changes; these were internal, unused plumbing.
+
 ## 2.6.0
 
 * [CHANGED] Upgrade Swift SDK to version 10.1.9.

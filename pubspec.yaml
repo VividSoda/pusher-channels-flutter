@@ -1,9 +1,9 @@
-name: pusher_channels_flutter
-description: Pusher Channels Flutter Plugin
-version: 2.6.0
-homepage: https://github.com/pusher/pusher-channels-flutter
-repository: https://github.com/pusher/pusher-channels-flutter
-issue_tracker: https://github.com/pusher/pusher-channels-flutter/issues
+name: vs_pusher_channels_flutter
+description: Pusher Channels Flutter Plugin. A VividSoda fork of pusher_channels_flutter, migrated to the latest Flutter/Android/iOS tooling.
+version: 2.7.0
+homepage: https://github.com/VividSoda/pusher-channels-flutter
+repository: https://github.com/VividSoda/pusher-channels-flutter
+issue_tracker: https://github.com/VividSoda/pusher-channels-flutter/issues
 environment:
   sdk: ">=3.5.0 <4.0.0"
   flutter: ">=1.20.0"
@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
-  js: ^0.7.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -31,12 +30,12 @@ flutter:
       android:
         package: com.pusher.channels_flutter
         pluginClass: PusherChannelsFlutterPlugin
-        fileName: pusher_channels_flutter.dart
+        fileName: vs_pusher_channels_flutter.dart
       ios:
         pluginClass: PusherChannelsFlutterPlugin
       web:
         pluginClass: PusherChannelsFlutterWeb
-        fileName: pusher_channels_flutter_web.dart
+        fileName: vs_pusher_channels_flutter_web.dart
 # To add assets to your plugin package, add an assets section, like this:
 # assets:
 #   - images/a_dot_burr.jpeg
