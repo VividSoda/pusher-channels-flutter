@@ -1,8 +1,6 @@
-@JS()
-
 import 'dart:async';
-import 'package:js/js.dart';
-import 'package:js/js_util.dart' as js_util;
+import 'dart:js_interop';
+
 // In order to *not* need this ignore, consider extracting the 'web' version
 // of your plugin as a separate package, instead of inlining it in the same
 // package as the core of your plugin.
@@ -14,40 +12,6 @@ import 'package:pusher_channels_flutter/pusher-js/core/channels/channel.dart';
 import 'package:pusher_channels_flutter/pusher-js/core/channels/presence_channel.dart';
 import 'package:pusher_channels_flutter/pusher-js/core/options.dart';
 import 'package:pusher_channels_flutter/pusher-js/core/pusher.dart';
-
-class PusherError extends Error {
-  String message;
-  int code;
-  PusherError(this.message, this.code);
-}
-
-@JS('JSON.stringify')
-external String stringify(Object obj);
-
-@JS('Object.keys')
-external List<String> objectKeys(object);
-
-bool _isBasicType(value) {
-  if (value == null || value is num || value is bool || value is String) {
-    return true;
-  }
-  return false;
-}
-
-T dartify<T>(dynamic jsObject) {
-  if (_isBasicType(jsObject)) {
-    return jsObject as T;
-  }
-  if (jsObject is List) {
-    return jsObject.map(dartify).toList() as T;
-  }
-  var keys = objectKeys(jsObject);
-  var result = <String, dynamic>{};
-  for (var key in keys) {
-    result[key] = dartify(js_util.getProperty(jsObject, key));
-  }
-  return result as T;
-}
 
 /// A web implementation of the PusherChannelsFlutter plugin.
 class PusherChannelsFlutterWeb {
@@ -104,14 +68,19 @@ class PusherChannelsFlutterWeb {
     }
   }
 
-  void assertChannel(String channelName) {
-    if (pusher!.channel(channelName) == null) {
-      throw ArgumentError.notNull('Not subscribed to channel: $channelName');
+  /// Deeply converts a JS value into plain Dart Maps/Lists/primitives.
+  /// `dart:js_interop`'s built-in [JSAnyUtilityExtension.dartify] already
+  /// does this recursively, so this just narrows the result to a Map.
+  Map<String, dynamic> _dartifyMap(JSAny? jsObject) {
+    final dartified = jsObject?.dartify();
+    if (dartified is Map) {
+      return Map<String, dynamic>.from(dartified);
     }
+    return <String, dynamic>{};
   }
 
-  void onError(dynamic jsError) {
-    final Map<String, dynamic> error = dartify<Map<String, dynamic>>(jsError);
+  void onError(JSAny? jsError) {
+    final error = _dartifyMap(jsError);
 
     if (error['type'] == 'PusherError') {
       methodChannel!.invokeMethod('onError', {
@@ -122,8 +91,8 @@ class PusherChannelsFlutterWeb {
     }
   }
 
-  void onMessage(dynamic jsMessage) {
-    final Map<String, dynamic> msg = dartify<Map<String, dynamic>>(jsMessage);
+  void onMessage(JSAny? jsMessage) {
+    final msg = _dartifyMap(jsMessage);
     final String event = msg['event'] ?? '';
     final String channel = msg['channel'] ?? '';
     final Map<String, dynamic> data = msg['data'] ?? {};
@@ -153,7 +122,7 @@ class PusherChannelsFlutterWeb {
       if (event == 'pusher_internal:subscription_succeeded') {
         if (channel.startsWith('presence-')) {
           final presenceChannel = pusher!.channel(channel) as PresenceChannel;
-          userId = presenceChannel.members.myID;
+          userId = presenceChannel.members.myID?.dartify() as String?;
         }
       }
       methodChannel!.invokeMethod('onEvent', {
@@ -165,9 +134,8 @@ class PusherChannelsFlutterWeb {
     }
   }
 
-  void onStateChange(dynamic jsState) {
-    final Map<String, dynamic> state =
-        dartify<Map<String, dynamic>>(jsState ?? {});
+  void onStateChange(JSAny? jsState) {
+    final state = _dartifyMap(jsState);
     final String current = state['current'] ?? '';
     final String previous = state['previous'] ?? '';
     methodChannel!.invokeMethod('onConnectionStateChange', {
@@ -176,30 +144,32 @@ class PusherChannelsFlutterWeb {
     });
   }
 
-  void onConnected(dynamic jsMessage) {}
+  void onConnected(JSAny? jsMessage) {}
 
   void onDisconnected() {}
 
   Authorizer onAuthorizer(Channel channel, AuthorizerOptions options) {
-    return Authorizer(
-      authorize: js_util.allowInterop((socketId, callback) async {
-        try {
-          var authData = await methodChannel!.invokeMethod('onAuthorizer', {
-            'socketId': socketId,
-            'channelName': channel.name,
-            'options': options.toMap(),
-          });
-          callback(
-              null,
-              AuthData(
-                  auth: authData['auth'],
-                  channel_data: authData['channel_data'],
-                  shared_secret: authData['shared_secret']));
-        } catch (e) {
-          callback(PusherError(e.toString(), -1), AuthData(auth: ''));
-        }
-      }),
-    );
+    void authorize(String socketId, JSFunction callback) async {
+      try {
+        var authData = await methodChannel!.invokeMethod('onAuthorizer', {
+          'socketId': socketId,
+          'channelName': channel.name,
+          'options': options.toMap(),
+        });
+        callback.callAsFunction(
+            null,
+            null,
+            AuthData(
+              auth: authData['auth'],
+              channel_data: authData['channel_data'],
+              shared_secret: authData['shared_secret'],
+            ));
+      } catch (e) {
+        callback.callAsFunction(null, e.toString().toJS, AuthData(auth: ''));
+      }
+    }
+
+    return Authorizer(authorize: authorize.toJS);
   }
 
   void subscribe(MethodCall call) {
@@ -218,7 +188,8 @@ class PusherChannelsFlutterWeb {
   void trigger(MethodCall call) {
     var channelName = call.arguments['channelName'];
     var channel = pusher!.channel(channelName);
-    channel?.trigger(call.arguments['eventName'], call.arguments['data']);
+    channel?.trigger(
+        call.arguments['eventName'], (call.arguments['data'] as Object?).jsify());
   }
 
   void init(MethodCall call) {
@@ -240,10 +211,14 @@ class PusherChannelsFlutterWeb {
       options.enableStats = call.arguments['enableStats'];
     }
     if (call.arguments['disabledTransports'] != null) {
-      options.disabledTransports = call.arguments['disabledTransports'];
+      options.disabledTransports =
+          (call.arguments['disabledTransports'] as Object?).jsify()
+              as JSArray<JSString>;
     }
     if (call.arguments['enabledTransports'] != null) {
-      options.enabledTransports = call.arguments['enabledTransports'];
+      options.enabledTransports =
+          (call.arguments['enabledTransports'] as Object?).jsify()
+              as JSArray<JSString>;
     }
     if (call.arguments['ignoreNullOrigin'] != null) {
       options.ignoreNullOrigin = call.arguments['ignoreNullOrigin'];
@@ -255,19 +230,20 @@ class PusherChannelsFlutterWeb {
       options.authEndpoint = call.arguments['authEndpoint'];
     }
     if (call.arguments['authParams'] != null) {
-      options.auth = call.arguments['authParams'];
+      options.auth =
+          (call.arguments['authParams'] as Object?).jsify() as AuthOptions;
     }
     if (call.arguments['logToConsole'] != null) {
       Pusher.logToConsole = call.arguments['logToConsole'];
     }
     if (call.arguments['authorizer'] != null) {
-      options.authorizer = js_util.allowInterop(onAuthorizer);
+      options.authorizer = onAuthorizer.toJS;
     }
     pusher = Pusher(call.arguments['apiKey'], options);
-    pusher!.connection.bind('error', js_util.allowInterop(onError));
-    pusher!.connection.bind('message', js_util.allowInterop(onMessage));
-    pusher!.connection.bind('state_change', js_util.allowInterop(onStateChange));
-    pusher!.connection.bind('connected', js_util.allowInterop(onConnected));
-    pusher!.connection.bind('disconnected', js_util.allowInterop(onDisconnected));
+    pusher!.connection.bind('error', onError.toJS);
+    pusher!.connection.bind('message', onMessage.toJS);
+    pusher!.connection.bind('state_change', onStateChange.toJS);
+    pusher!.connection.bind('connected', onConnected.toJS);
+    pusher!.connection.bind('disconnected', onDisconnected.toJS);
   }
 }

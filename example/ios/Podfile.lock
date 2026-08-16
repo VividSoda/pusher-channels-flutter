@@ -1,11 +1,11 @@
 PODS:
   - Flutter (1.0.0)
-  - NWWebSocket (0.5.9)
+  - NWWebSocket (0.5.10)
   - pusher_channels_flutter (0.0.1):
     - Flutter
-    - PusherSwift (~> 10.1.9)
-  - PusherSwift (10.1.9):
-    - NWWebSocket (~> 0.5.9)
+    - PusherSwift (~> 10.1.10)
+  - PusherSwift (10.1.10):
+    - NWWebSocket (~> 0.5.10)
     - PusherTweetNacl (~> 1.2.0)
   - PusherTweetNacl (1.2.0)
   - shared_preferences_foundation (0.0.1):
@@ -32,13 +32,13 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
 
 SPEC CHECKSUMS:
-  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  NWWebSocket: 01dead025db38f26693d4fa0b4d5869c8013eae0
-  pusher_channels_flutter: 2723222f2686852dd91d13780938d11cca114a39
-  PusherSwift: 84a45a6b62c137c52ca948626817989d3127c022
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  NWWebSocket: 873eb4b18acd0317da70cdba388d792a3187ce00
+  pusher_channels_flutter: 6d2b9c80e605189497959fb4edcaaafa775e3046
+  PusherSwift: 6022fe6584b4317dc5c177091292b2a4d80a8c35
   PusherTweetNacl: 015f56f2cf010e718703f2bd9bca66fdcc91b208
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

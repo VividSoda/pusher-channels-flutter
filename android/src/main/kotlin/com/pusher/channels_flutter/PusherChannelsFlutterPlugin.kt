@@ -92,6 +92,19 @@ class PusherChannelsFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAw
         }
     }
 
+    /**
+     * Returns the active Pusher client, or replies to [result] with a
+     * [Result.error] and returns null if `init` hasn't been called yet.
+     * Avoids crashing the host app on a `!!` of an uninitialized client.
+     */
+    private fun requirePusher(result: Result): Pusher? {
+        val currentPusher = pusher
+        if (currentPusher == null) {
+            result.error("uninitialized", "PusherChannelsFlutter: init() must be called before this method.", null)
+        }
+        return currentPusher
+    }
+
     private fun init(
         call: MethodCall,
         result: Result
@@ -128,49 +141,59 @@ class PusherChannelsFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAw
     }
 
     private fun connect(result: Result) {
-        pusher!!.connect(this, ConnectionState.ALL)
+        val pusher = requirePusher(result) ?: return
+        pusher.connect(this, ConnectionState.ALL)
         result.success(null)
     }
 
     private fun disconnect(result: Result) {
-        pusher!!.disconnect()
+        val pusher = requirePusher(result) ?: return
+        pusher.disconnect()
         result.success(null)
     }
 
     private fun subscribe(channelName: String, result: Result) {
+        val pusher = requirePusher(result) ?: return
         val channel = when {
-            channelName.startsWith("private-encrypted-") -> pusher!!.subscribePrivateEncrypted(
+            channelName.startsWith("private-encrypted-") -> pusher.subscribePrivateEncrypted(
                 channelName, this
             )
-            channelName.startsWith("private-") -> pusher!!.subscribePrivate(channelName, this)
-            channelName.startsWith("presence-") -> pusher!!.subscribePresence(
+            channelName.startsWith("private-") -> pusher.subscribePrivate(channelName, this)
+            channelName.startsWith("presence-") -> pusher.subscribePresence(
                 channelName, this
             )
-            else -> pusher!!.subscribe(channelName, this)
+            else -> pusher.subscribe(channelName, this)
         }
         channel.bindGlobal(this)
         result.success(null)
     }
 
     private fun unsubscribe(channelName: String, result: Result) {
-        pusher!!.unsubscribe(channelName)
+        val pusher = requirePusher(result) ?: return
+        pusher.unsubscribe(channelName)
         result.success(null)
     }
 
     private fun trigger(channelName: String, eventName: String, data: String, result: Result) {
-        when {
-            channelName.startsWith("private-encrypted-") -> throw Exception("It's not currently possible to send a message using private encrypted channels.")
-            channelName.startsWith("private-") -> pusher!!.getPrivateChannel(channelName)
-                .trigger(eventName, data)
-            channelName.startsWith("presence-") -> pusher!!.getPresenceChannel(channelName)
-                .trigger(eventName, data)
-            else -> throw Exception("Messages can only be sent to private and presence channels.")
+        val pusher = requirePusher(result) ?: return
+        try {
+            when {
+                channelName.startsWith("private-encrypted-") -> throw Exception("It's not currently possible to send a message using private encrypted channels.")
+                channelName.startsWith("private-") -> pusher.getPrivateChannel(channelName)
+                    .trigger(eventName, data)
+                channelName.startsWith("presence-") -> pusher.getPresenceChannel(channelName)
+                    .trigger(eventName, data)
+                else -> throw Exception("Messages can only be sent to private and presence channels.")
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error(TAG, e.message, null)
         }
-        result.success(null)
     }
 
     private fun getSocketId(result: Result) {
-        val socketId = pusher!!.connection.socketId
+        val pusher = requirePusher(result) ?: return
+        val socketId = pusher.connection.socketId
         result.success(socketId)
     }
 

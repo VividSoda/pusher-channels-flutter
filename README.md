@@ -95,15 +95,21 @@ dependencies:
 
 ### iOS specific installation
 
-The Pusher Channels Flutter plugin adds the
-pusher-websocket-swift cocoapod to your project.
-You probably need to run a
+The plugin supports both CocoaPods and Swift Package Manager for its
+PusherSwift dependency, so it works with either dependency manager.
+
+If your app uses CocoaPods (the default), the plugin adds the
+pusher-websocket-swift cocoapod to your project. You probably need to run a
 
 ```bash
 $ pod install
 ```
 
 in the ios directory.
+
+If your app has [Swift Package Manager support enabled](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers)
+(`flutter config --enable-swift-package-manager`), no CocoaPods step is
+needed — Flutter resolves the plugin's `Package.swift` automatically.
 
 ### Android specific installation
 
@@ -125,6 +131,8 @@ index.html page:
   ...
 </head>
 ```
+
+The Dart-side bindings for pusher-js use `dart:js_interop`, so the plugin compiles for both dart2js (`flutter build web`) and WebAssembly (`flutter build web --wasm`).
 
 ## Initialization
 
@@ -337,6 +345,15 @@ The different states that the connection can be in are:
 - `DISCONNECTING` - the connection has been instructed to disconnect and it is just about to do so
 - `DISCONNECTED` - the connection has disconnected and no attempt will be made to reconnect automatically
 - `RECONNECTING` - an attempt is going to be made to try and re-establish the connection
+
+These are also available as a typed `PusherConnectionState` enum via
+`pusher.connectionStateEnum`, if you'd rather not match on the raw string:
+
+```dart
+if (pusher.connectionStateEnum == PusherConnectionState.connected) {
+  // ...
+}
+```
 
 #### `onError`
 

@@ -3,6 +3,50 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
+/// Typed representation of Pusher's connection lifecycle state.
+///
+/// This is a purely additive, non-breaking convenience on top of the
+/// String-based [PusherChannelsFlutter.connectionState] value reported by
+/// the native SDKs (which use `CONNECTED`/`connected`-style casing
+/// depending on platform) — the raw string remains the value passed to
+/// [PusherChannelsFlutter.onConnectionStateChange]. Use
+/// [PusherChannelsFlutter.connectionStateEnum] to read this typed form.
+enum PusherConnectionState {
+  connecting,
+  connected,
+  disconnecting,
+  disconnected,
+  reconnecting,
+  reconnectingWhenNetworkBecomesReachable,
+
+  /// Reported by a platform SDK but not one of the known states above.
+  /// Kept instead of throwing so that a new state added to a platform SDK
+  /// doesn't crash apps built against an older version of this package.
+  unknown;
+
+  /// Parses a raw connection state string (as reported by the platform
+  /// SDKs, e.g. `"CONNECTED"` on Android/iOS or `"connected"` on web) into
+  /// a [PusherConnectionState].
+  static PusherConnectionState parse(String value) {
+    switch (value.toUpperCase()) {
+      case 'CONNECTING':
+        return PusherConnectionState.connecting;
+      case 'CONNECTED':
+        return PusherConnectionState.connected;
+      case 'DISCONNECTING':
+        return PusherConnectionState.disconnecting;
+      case 'DISCONNECTED':
+        return PusherConnectionState.disconnected;
+      case 'RECONNECTING':
+        return PusherConnectionState.reconnecting;
+      case 'RECONNECTING_WHEN_NETWORK_BECOMES_REACHABLE':
+        return PusherConnectionState.reconnectingWhenNetworkBecomesReachable;
+      default:
+        return PusherConnectionState.unknown;
+    }
+  }
+}
+
 class PusherEvent {
   String channelName;
   String eventName;
@@ -70,6 +114,10 @@ class PusherChannelsFlutter {
   MethodChannel methodChannel = const MethodChannel('pusher_channels_flutter');
   Map<String, PusherChannel> channels = {};
   String connectionState = 'DISCONNECTED';
+
+  /// Typed view of [connectionState]. See [PusherConnectionState].
+  PusherConnectionState get connectionStateEnum =>
+      PusherConnectionState.parse(connectionState);
   Function(String currentState, String previousState)? onConnectionStateChange;
   Function(String channelName, dynamic data)? onSubscriptionSucceeded;
   Function(String message, dynamic error)? onSubscriptionError;
