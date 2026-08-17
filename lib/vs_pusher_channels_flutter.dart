@@ -1,3 +1,10 @@
+/// A Flutter client for [Pusher Channels](https://pusher.com/channels),
+/// backed by the official native SDKs on Android and iOS and by pusher-js on
+/// the web.
+///
+/// Start from [PusherChannelsFlutter], the singleton client.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -12,11 +19,23 @@ import 'package:flutter/services.dart';
 /// [PusherChannelsFlutter.onConnectionStateChange]. Use
 /// [PusherChannelsFlutter.connectionStateEnum] to read this typed form.
 enum PusherConnectionState {
+  /// A connection is being established.
   connecting,
+
+  /// The connection is open and events can be sent and received.
   connected,
+
+  /// The connection is being closed after [PusherChannelsFlutter.disconnect].
   disconnecting,
+
+  /// No connection is open.
   disconnected,
+
+  /// The connection dropped and the SDK is retrying.
   reconnecting,
+
+  /// The connection dropped while the device was offline; the SDK is waiting
+  /// for the network to come back before retrying. Reported by iOS only.
   reconnectingWhenNetworkBecomesReachable,
 
   /// Reported by a platform SDK but not one of the known states above.
@@ -47,11 +66,28 @@ enum PusherConnectionState {
   }
 }
 
+/// An event received from — or triggered on — a channel.
+///
+/// The same type is used in both directions: it is handed to
+/// [PusherChannelsFlutter.onEvent] for incoming events, and passed to
+/// [PusherChannelsFlutter.trigger] to send a client event.
 class PusherEvent {
+  /// Name of the channel the event belongs to, e.g. `presence-chat`.
   String channelName;
+
+  /// Name of the event, e.g. `client-typing` or `pusher:subscription_succeeded`.
   String eventName;
+
+  /// Event payload. Depending on the platform this is either a JSON `String`
+  /// or an already-decoded `Map`.
   dynamic data;
+
+  /// Id of the user that sent the event, when the channel is a presence
+  /// channel and the sender is known. Null otherwise.
   String? userId;
+
+  /// Creates an event for [channelName]/[eventName], optionally carrying
+  /// [data] and the sending [userId].
   PusherEvent({
     required this.channelName,
     required this.eventName,
@@ -64,27 +100,65 @@ class PusherEvent {
       '{ channelName: $channelName, eventName: $eventName, data: $data, userId: $userId }';
 }
 
+/// A member of a presence channel.
 class PusherMember {
+  /// Id the authentication endpoint assigned to this member.
   String userId;
+
+  /// Arbitrary payload the authentication endpoint returned for this member,
+  /// typically a `Map` of profile fields. Null when none was supplied.
   dynamic userInfo;
 
+  /// Creates a member from the [userId] and [userInfo] reported by the
+  /// authentication endpoint.
   PusherMember(this.userId, this.userInfo);
 
   @override
   String toString() => '{ userId: $userId, userInfo: $userInfo }';
 }
 
+/// A subscribed channel, returned by [PusherChannelsFlutter.subscribe].
+///
+/// Holds the per-channel callbacks and, for presence channels, the member
+/// list that this package keeps in sync as members come and go.
 class PusherChannel {
+  /// Name of the channel this instance represents.
   String channelName;
+
+  /// Members currently in the channel, keyed by [PusherMember.userId].
+  ///
+  /// Only populated for presence channels; empty for public and private ones.
   Map<String, PusherMember> members = {};
+
+  /// The local user's own membership, once the presence subscription has
+  /// succeeded. Null on public and private channels.
   PusherMember? me;
+
+  /// Number of connections subscribed to this channel.
+  ///
+  /// Updated from `pusher:subscription_count` events, which Pusher only sends
+  /// when the subscription count feature is enabled for the app.
   int subscriptionCount = 0;
 
+  /// Called once the subscription is confirmed, with the raw payload.
   Function(dynamic data)? onSubscriptionSucceeded;
+
+  /// Called for every [PusherEvent] received on this channel.
   Function(dynamic event)? onEvent;
+
+  /// Called when a member joins a presence channel.
   Function(PusherMember member)? onMemberAdded;
+
+  /// Called when a member leaves a presence channel.
   Function(PusherMember member)? onMemberRemoved;
+
+  /// Called when [subscriptionCount] changes.
   Function(int subscriptionCount)? onSubscriptionCount;
+
+  /// Creates a channel handle for [channelName] with the given callbacks.
+  ///
+  /// Prefer [PusherChannelsFlutter.subscribe], which constructs this and
+  /// registers the subscription with the platform SDK.
   PusherChannel({
     required this.channelName,
     this.onSubscriptionSucceeded,
@@ -95,11 +169,17 @@ class PusherChannel {
     this.me,
   });
 
+  /// Unsubscribes from this channel.
   Future<void> unsubscribe() async {
     return PusherChannelsFlutter.getInstance()
         .unsubscribe(channelName: channelName);
   }
 
+  /// Sends a client event on this channel.
+  ///
+  /// Only private and presence channels accept client events, and
+  /// [PusherEvent.eventName] must be prefixed with `client-`. Throws if
+  /// [PusherEvent.channelName] is not [channelName].
   Future<void> trigger(PusherEvent event) async {
     if (event.channelName != channelName) {
       throw ('Event is not for this channel');
@@ -108,27 +188,79 @@ class PusherChannel {
   }
 }
 
+/// Entry point of the plugin: a singleton client for Pusher Channels.
+///
+/// Obtain it with [getInstance], configure it with [init], then [connect] and
+/// [subscribe]. Callbacks registered here fire for every channel; the
+/// per-channel equivalents live on [PusherChannel].
+///
+/// ```dart
+/// final pusher = PusherChannelsFlutter.getInstance();
+/// await pusher.init(apiKey: 'APP_KEY', cluster: 'eu');
+/// await pusher.connect();
+/// await pusher.subscribe(channelName: 'my-channel');
+/// ```
 class PusherChannelsFlutter {
   static PusherChannelsFlutter? _instance;
 
+  /// Creates an unconfigured client.
+  ///
+  /// Prefer [getInstance]: a single connection is shared process-wide, and the
+  /// web implementation binds to one method channel.
+  PusherChannelsFlutter();
+
+  /// Channel used to talk to the Android, iOS and web implementations.
   MethodChannel methodChannel = const MethodChannel('pusher_channels_flutter');
+
+  /// Currently subscribed channels, keyed by channel name.
   Map<String, PusherChannel> channels = {};
+
+  /// Raw connection state as reported by the platform SDK, upper-cased —
+  /// e.g. `CONNECTED`. See [connectionStateEnum] for a typed view.
   String connectionState = 'DISCONNECTED';
 
   /// Typed view of [connectionState]. See [PusherConnectionState].
   PusherConnectionState get connectionStateEnum =>
       PusherConnectionState.parse(connectionState);
+
+  /// Called on every connection state transition, with both states as raw
+  /// upper-cased strings. Parse with [PusherConnectionState.parse].
   Function(String currentState, String previousState)? onConnectionStateChange;
+
+  /// Called when any channel's subscription is confirmed.
   Function(String channelName, dynamic data)? onSubscriptionSucceeded;
+
+  /// Called when a subscription is rejected, typically because the
+  /// authentication endpoint refused it.
   Function(String message, dynamic error)? onSubscriptionError;
+
+  /// Called when an event on a private-encrypted channel could not be
+  /// decrypted.
   Function(String event, String reason)? onDecryptionFailure;
+
+  /// Called on connection-level errors, with the Pusher error [code] when the
+  /// platform SDK reports one.
   Function(String message, int? code, dynamic error)? onError;
+
+  /// Called for every event received on any subscribed channel.
   Function(PusherEvent event)? onEvent;
+
+  /// Called when a member joins any subscribed presence channel.
   Function(String channelName, PusherMember member)? onMemberAdded;
+
+  /// Called when a member leaves any subscribed presence channel.
   Function(String channelName, PusherMember member)? onMemberRemoved;
+
+  /// Called to authorize a private or presence subscription, when set in
+  /// [init]. Return a `Map` with an `auth` key (plus `channel_data` for
+  /// presence channels, `shared_secret` for encrypted ones). Use this instead
+  /// of `authEndpoint` when the auth request has to go through your own code.
   Function(String channelName, String socketId, dynamic options)? onAuthorizer;
+
+  /// Called when the subscription count of any subscribed channel changes.
   Function(String channelName, int subscriptionCount)? onSubscriptionCount;
 
+  /// Returns the singleton client, creating it on first call.
   static PusherChannelsFlutter getInstance() {
     _instance ??= PusherChannelsFlutter();
     return _instance!;
@@ -293,14 +425,20 @@ class PusherChannelsFlutter {
     }
   }
 
+  /// Opens the connection. Call [init] first.
   Future<void> connect() async {
     await methodChannel.invokeMethod('connect');
   }
 
+  /// Closes the connection. Subscriptions are restored on the next [connect].
   Future<void> disconnect() async {
     await methodChannel.invokeMethod('disconnect');
   }
 
+  /// Subscribes to [channelName] and returns a handle to the channel.
+  ///
+  /// The optional callbacks mirror the fields on [PusherChannel] and fire only
+  /// for this channel, alongside the global callbacks passed to [init].
   Future<PusherChannel> subscribe(
       {required String channelName,
       var onSubscriptionSucceeded,
@@ -321,12 +459,18 @@ class PusherChannelsFlutter {
     return channel;
   }
 
+  /// Unsubscribes from [channelName] and drops it from [channels].
   Future<void> unsubscribe({required String channelName}) async {
     channels.remove(channelName);
     await methodChannel
         .invokeMethod("unsubscribe", {"channelName": channelName});
   }
 
+  /// Sends a client event.
+  ///
+  /// Throws unless [PusherEvent.channelName] is a private or presence channel,
+  /// the only kinds that accept client events. [PusherEvent.eventName] must be
+  /// prefixed with `client-`.
   Future<void> trigger(PusherEvent event) async {
     if (event.channelName.startsWith("private-") ||
         event.channelName.startsWith("presence-")) {
@@ -340,10 +484,14 @@ class PusherChannelsFlutter {
     }
   }
 
+  /// Returns the id of the current connection, as required by authentication
+  /// endpoints. Only meaningful once connected.
   Future<String> getSocketId() async {
     return (await methodChannel.invokeMethod('getSocketId')).toString();
   }
 
+  /// Returns the subscribed channel named [channelName], or null if this
+  /// client is not subscribed to it.
   PusherChannel? getChannel(String channelName) {
     return channels[channelName];
   }
