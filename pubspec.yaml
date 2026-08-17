@@ -1,6 +1,6 @@
 name: vs_pusher_channels_flutter
 description: Pusher Channels Flutter Plugin. A VividSoda fork of pusher_channels_flutter, migrated to the latest Flutter/Android/iOS tooling.
-version: 2.7.1
+version: 2.8.0
 homepage: https://github.com/VividSoda/pusher-channels-flutter
 repository: https://github.com/VividSoda/pusher-channels-flutter
 issue_tracker: https://github.com/VividSoda/pusher-channels-flutter/issues

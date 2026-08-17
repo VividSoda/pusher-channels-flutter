@@ -54,7 +54,17 @@ public class PusherChannelsFlutterPlugin: NSObject, FlutterPlugin, PusherDelegat
     let args = call.arguments as! [String: Any]
     var authMethod: AuthMethod = .noMethod
     if args["authEndpoint"] is String {
-      authMethod = .endpoint(authEndpoint: args["authEndpoint"] as! String)
+      let authEndpoint = args["authEndpoint"] as! String
+      // authParams["headers"] is forwarded to the auth endpoint, which the
+      // plain .endpoint method cannot express.
+      if let authParams = args["authParams"] as? [String: [String: String]],
+         let headers = authParams["headers"], !headers.isEmpty {
+        authMethod = .authRequestBuilder(
+          authRequestBuilder: PusherAuthRequestBuilder(
+            authEndpoint: authEndpoint, headers: headers))
+      } else {
+        authMethod = .endpoint(authEndpoint: authEndpoint)
+      }
     } else if args["authorizer"] is Bool {
       authMethod = .authorizer(authorizer: self)
     }
@@ -273,5 +283,40 @@ public class PusherChannelsFlutterPlugin: NSObject, FlutterPlugin, PusherDelegat
     }
     channel.trigger(eventName: eventName, data: data as Any)
     result(nil)
+  }
+}
+
+/// Posts the channel authorization request with caller-supplied headers.
+///
+/// PusherSwift's `.endpoint` auth method sends no custom headers, so a
+/// self-hosted endpoint expecting a token or session header needs this.
+class PusherAuthRequestBuilder: NSObject, AuthRequestBuilderProtocol {
+  let authEndpoint: String
+  let headers: [String: String]
+
+  init(authEndpoint: String, headers: [String: String]) {
+    self.authEndpoint = authEndpoint
+    self.headers = headers
+  }
+
+  func requestFor(socketID: String, channelName: String) -> URLRequest? {
+    guard let url = URL(string: authEndpoint) else {
+      return nil
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    // Matches the form encoding the default endpoint authorizer uses.
+    var body = URLComponents()
+    body.queryItems = [
+      URLQueryItem(name: "socket_id", value: socketID),
+      URLQueryItem(name: "channel_name", value: channelName),
+    ]
+    request.httpBody = body.percentEncodedQuery?.data(using: .utf8)
+    request.setValue(
+      "application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    for (key, value) in headers {
+      request.setValue(value, forHTTPHeaderField: key)
+    }
+    return request
   }
 }

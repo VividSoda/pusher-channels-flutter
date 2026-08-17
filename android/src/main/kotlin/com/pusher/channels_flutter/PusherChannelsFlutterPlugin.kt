@@ -115,6 +115,10 @@ class PusherChannelsFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAw
             }
             val options = PusherOptions()
             if (call.argument<String>("cluster") != null) options.setCluster(call.argument("cluster"))
+            // Applied after the cluster so a self-hosted host wins when both are set.
+            if (call.argument<String>("host") != null) options.setHost(call.argument("host"))
+            if (call.argument<Int>("wsPort") != null) options.setWsPort(call.argument("wsPort")!!)
+            if (call.argument<Int>("wssPort") != null) options.setWssPort(call.argument("wssPort")!!)
             if (call.argument<Boolean>("useTLS") != null) options.isUseTLS =
                 call.argument("useTLS")!!
             if (call.argument<Long>("activityTimeout") != null) options.activityTimeout =
@@ -125,8 +129,16 @@ class PusherChannelsFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAw
                 call.argument("maxReconnectionAttempts")!!
             if (call.argument<Int>("maxReconnectGapInSeconds") != null) options.maxReconnectGapInSeconds =
                 call.argument("maxReconnectGapInSeconds")!!
-            if (call.argument<String>("authEndpoint") != null) options.channelAuthorizer =
-                HttpChannelAuthorizer(call.argument("authEndpoint"))
+            if (call.argument<String>("authEndpoint") != null) {
+                val authorizer = HttpChannelAuthorizer(call.argument("authEndpoint"))
+                // authParams["headers"] is forwarded to the auth endpoint, so
+                // token/session headers reach it on Android too.
+                call.argument<Map<String, Map<String, String>>>("authParams")
+                    ?.get("headers")
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { authorizer.setHeaders(it) }
+                options.channelAuthorizer = authorizer
+            }
             if (call.argument<String>("authorizer") != null) options.channelAuthorizer = this
             if (call.argument<String>("proxy") != null) {
                 val (host, port) = call.argument<String>("proxy")!!.split(':')

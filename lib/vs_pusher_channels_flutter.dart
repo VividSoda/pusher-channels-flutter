@@ -134,9 +134,20 @@ class PusherChannelsFlutter {
     return _instance!;
   }
 
+  /// Initializes the client.
+  ///
+  /// Supply either [cluster] (Pusher Channels cloud) or [host] (a self-hosted
+  /// server such as Soketi or laravel-websockets). When [host] is given,
+  /// [wsPort]/[wssPort] select the plaintext/TLS ports.
+  ///
+  /// [authParams] may carry an `headers` entry, which is applied to requests
+  /// made to [authEndpoint] on every platform.
   Future<void> init({
     required String apiKey,
-    required String cluster,
+    String? cluster,
+    String? host, // self-hosted server (Soketi, laravel-websockets, ...)
+    int? wsPort, // port used for plaintext connections
+    int? wssPort, // port used for TLS connections
     bool? useTLS,
     int? activityTimeout,
     int? pongTimeout,
@@ -147,9 +158,9 @@ class PusherChannelsFlutter {
     List<String>? disabledTransports, // pusher-js only
     List<String>? enabledTransports, // pusher-js only
     bool? ignoreNullOrigin, // pusher-js only
-    String? authEndpoint, // pusher-js only
+    String? authEndpoint,
     String? authTransport, // pusher-js only
-    Map<String, Map<String, String>>? authParams, // pusher-js only
+    Map<String, Map<String, String>>? authParams,
     bool? logToConsole, // pusher-js only
     Function(String currentState, String previousState)?
         onConnectionStateChange,
@@ -164,6 +175,8 @@ class PusherChannelsFlutter {
         onAuthorizer,
     Function(String channelName, int subscriptionCount)? onSubscriptionCount,
   }) async {
+    assert(cluster != null || host != null,
+        'Supply either a cluster or a host to connect to.');
     methodChannel.setMethodCallHandler(_platformCallHandler);
     this.onConnectionStateChange = onConnectionStateChange;
     this.onError = onError;
@@ -178,6 +191,11 @@ class PusherChannelsFlutter {
     await methodChannel.invokeMethod('init', {
       "apiKey": apiKey,
       "cluster": cluster,
+      // Left null when not supplied, so a cluster-only setup keeps the
+      // endpoint the cluster resolves to.
+      "host": host,
+      "wsPort": wsPort,
+      "wssPort": wssPort,
       "useTLS": useTLS,
       "activityTimeout": activityTimeout,
       "pongTimeout": pongTimeout,
