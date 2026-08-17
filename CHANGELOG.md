@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.0
+
+- [CHANGED] Moved the vendored pusher-js interop bindings from `lib/pusher-js/` to `lib/src/pusher-js/`. These are internal plumbing — the public API (`PusherChannelsFlutter`, `PusherChannel`, `PusherEvent`, `PusherMember`, `PusherConnectionState`) is unchanged. Only code that imported `package:vs_pusher_channels_flutter/pusher-js/...` directly is affected; nothing in this package's documented surface ever exposed those paths.
+- [ADDED] Dartdoc comments across the public API, so every exported type, field, callback and method is documented.
+- [FIXED] Two `http://` links in the README now use `https://`.
+
 ## 2.8.0
 
 - [ADDED] `init()` accepts `host`, `wsPort` and `wssPort`, so the client can connect to a self-hosted server (Soketi, laravel-websockets) instead of Pusher Channels cloud. Wired natively on Android (`PusherOptions.setHost/setWsPort/setWssPort`) and web (`wsHost`/`wsPort`/`wssPort`); iOS already honoured these once the Dart layer forwarded them. Omitting them keeps the endpoint the cluster resolves to, so cluster-based setups are unaffected.

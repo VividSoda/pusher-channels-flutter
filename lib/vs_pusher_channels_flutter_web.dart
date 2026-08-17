@@ -1,3 +1,10 @@
+/// The web implementation of this plugin, bridging the plugin's method
+/// channel onto pusher-js.
+///
+/// Registered automatically on web builds; application code uses
+/// `PusherChannelsFlutter` from `vs_pusher_channels_flutter.dart` instead.
+library;
+
 import 'dart:async';
 import 'dart:js_interop';
 
@@ -7,17 +14,30 @@ import 'dart:js_interop';
 // ignore: avoid_web_libraries_in_flutter
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'package:vs_pusher_channels_flutter/pusher-js/core/auth/options.dart';
-import 'package:vs_pusher_channels_flutter/pusher-js/core/channels/channel.dart';
-import 'package:vs_pusher_channels_flutter/pusher-js/core/channels/presence_channel.dart';
-import 'package:vs_pusher_channels_flutter/pusher-js/core/options.dart';
-import 'package:vs_pusher_channels_flutter/pusher-js/core/pusher.dart';
+import 'package:vs_pusher_channels_flutter/src/pusher-js/core/auth/options.dart';
+import 'package:vs_pusher_channels_flutter/src/pusher-js/core/channels/channel.dart';
+import 'package:vs_pusher_channels_flutter/src/pusher-js/core/channels/presence_channel.dart';
+import 'package:vs_pusher_channels_flutter/src/pusher-js/core/options.dart';
+import 'package:vs_pusher_channels_flutter/src/pusher-js/core/pusher.dart';
 
 /// A web implementation of the PusherChannelsFlutter plugin.
+///
+/// Backed by pusher-js through the `dart:js_interop` bindings in
+/// `lib/src/pusher-js`. Registered automatically by Flutter's web plugin
+/// registrar — application code should use `PusherChannelsFlutter` instead of
+/// touching this class directly.
 class PusherChannelsFlutterWeb {
+  /// Creates the web implementation. Called by [registerWith]; application
+  /// code should not need this.
+  PusherChannelsFlutterWeb();
+
+  /// The underlying pusher-js client, created by [init].
   Pusher? pusher;
+
+  /// Channel carrying calls from the Dart-side `PusherChannelsFlutter`.
   MethodChannel? methodChannel;
 
+  /// Registers this implementation with the Flutter web plugin [registrar].
   static void registerWith(Registrar registrar) {
     final pluginInstance = PusherChannelsFlutterWeb();
     pluginInstance.methodChannel = MethodChannel(
@@ -29,6 +49,10 @@ class PusherChannelsFlutterWeb {
         .setMethodCallHandler(pluginInstance.handleMethodCall);
   }
 
+  /// Dispatches a [MethodCall] from the Dart side to pusher-js.
+  ///
+  /// Throws a [PlatformException] for methods the web implementation does not
+  /// support.
   Future<dynamic> handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'init':
@@ -62,6 +86,8 @@ class PusherChannelsFlutterWeb {
     }
   }
 
+  /// Throws an [ArgumentError] if [init] has not run yet, so that calls made
+  /// before `init()` surface as an error instead of a null dereference.
   void assertPusher() {
     if (pusher == null) {
       throw ArgumentError.notNull('Pusher not initialized');
@@ -79,6 +105,7 @@ class PusherChannelsFlutterWeb {
     return <String, dynamic>{};
   }
 
+  /// Forwards a pusher-js `error` event to the Dart side.
   void onError(JSAny? jsError) {
     final error = _dartifyMap(jsError);
 
@@ -91,6 +118,8 @@ class PusherChannelsFlutterWeb {
     }
   }
 
+  /// Forwards a pusher-js `message` event to the Dart side, splitting the
+  /// internal presence events out into member-added/-removed calls.
   void onMessage(JSAny? jsMessage) {
     final msg = _dartifyMap(jsMessage);
     final String event = msg['event'] ?? '';
@@ -134,6 +163,7 @@ class PusherChannelsFlutterWeb {
     }
   }
 
+  /// Forwards a pusher-js `state_change` event to the Dart side.
   void onStateChange(JSAny? jsState) {
     final state = _dartifyMap(jsState);
     final String current = state['current'] ?? '';
@@ -144,10 +174,16 @@ class PusherChannelsFlutterWeb {
     });
   }
 
+  /// Handles the pusher-js `connected` event. The state transition is already
+  /// reported through [onStateChange], so nothing more is needed here.
   void onConnected(JSAny? jsMessage) {}
 
+  /// Handles the pusher-js `disconnected` event. As with [onConnected], the
+  /// transition is already reported through [onStateChange].
   void onDisconnected() {}
 
+  /// Builds the pusher-js authorizer that delegates to the Dart-side
+  /// `onAuthorizer` callback for [channel].
   Authorizer onAuthorizer(Channel channel, AuthorizerOptions options) {
     void authorize(String socketId, JSFunction callback) async {
       try {
@@ -172,12 +208,14 @@ class PusherChannelsFlutterWeb {
     return Authorizer(authorize: authorize.toJS);
   }
 
+  /// Subscribes to the channel named in [call].
   void subscribe(MethodCall call) {
     assertPusher();
     var channelName = call.arguments['channelName'];
     pusher!.subscribe(channelName);
   }
 
+  /// Unsubscribes from the channel named in [call] and drops its bindings.
   void unsubscribe(MethodCall call) {
     var channelName = call.arguments['channelName'];
     var channel = pusher!.channel(channelName);
@@ -185,13 +223,17 @@ class PusherChannelsFlutterWeb {
     channel?.unbind_all();
   }
 
+  /// Triggers the client event described by [call] on its channel.
   void trigger(MethodCall call) {
     var channelName = call.arguments['channelName'];
     var channel = pusher!.channel(channelName);
-    channel?.trigger(
-        call.arguments['eventName'], (call.arguments['data'] as Object?).jsify());
+    channel?.trigger(call.arguments['eventName'],
+        (call.arguments['data'] as Object?).jsify());
   }
 
+  /// Creates the pusher-js client from the options in [call] and binds the
+  /// connection events. Tears down a previous client first, so that `init()`
+  /// can be called more than once.
   void init(MethodCall call) {
     if (pusher != null) {
       pusher!.unbind_all();

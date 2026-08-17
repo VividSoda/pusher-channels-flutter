@@ -67,6 +67,5 @@ extension type Channel._(JSObject _) implements JSObject {
       [String? eventName, JSFunction? callback, JSAny? context]);
   external Dispatcher unbind_global([JSFunction? callback]);
   external Dispatcher unbind_all();
-  external Dispatcher emit(String eventName,
-      [JSAny? data, Metadata? metadata]);
+  external Dispatcher emit(String eventName, [JSAny? data, Metadata? metadata]);
 }
