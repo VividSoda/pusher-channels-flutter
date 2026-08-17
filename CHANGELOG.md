@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.1
+
+* [CHANGED] Android: migrated to built-in Kotlin (AGP 9.0+), with an automatic fallback that applies the Kotlin Gradle Plugin when built-in Kotlin isn't active (AGP <9, or `android.builtInKotlin=false` — currently required on Flutter <3.47). No consumer-facing changes; either configuration builds correctly.
+* [CHANGED] Example app: removed the `shared_preferences` dependency (it only pre-filled form fields for convenience) to keep the example free of plugins that haven't migrated to built-in Kotlin.
+
 ## 2.7.0
 
 * [CHANGED] Migrated Android build to the latest Flutter plugin template: Kotlin DSL (`build.gradle.kts`), AGP 9.0.1, Kotlin 2.3.20, Gradle 9.1.0, compileSdk 36, Java 17. Example app build files migrated the same way.
