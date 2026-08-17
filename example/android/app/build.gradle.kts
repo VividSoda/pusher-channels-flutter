@@ -4,6 +4,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// AGP 9+ compiles Kotlin itself when built-in Kotlin is enabled (the default),
+// but apps migrated by the Flutter tool disable it via android.builtInKotlin=false.
+// Apply KGP whenever built-in Kotlin is not active, so the kotlin {} extension
+// below exists in both configurations.
+val agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.substringBefore('.').toInt()
+val builtInKotlin = agpMajor >= 9 &&
+    (findProperty("android.builtInKotlin") as? String ?: "true").toBoolean()
+if (!builtInKotlin) {
+    apply(plugin = "org.jetbrains.kotlin.android")
+}
+
 android {
     namespace = "com.pusher.channels_flutter_example"
     compileSdk = flutter.compileSdkVersion
